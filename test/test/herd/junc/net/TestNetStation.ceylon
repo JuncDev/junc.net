@@ -14,7 +14,6 @@ import herd.junc.api.monitor {
 	Counter,
 	Average,
 	Priority,
-	LogWriter,
 	Meter
 }
 import herd.junc.net.station {
@@ -30,7 +29,8 @@ import herd.junc.core {
 
 	startJuncCore,
 	Railway,
-	JuncOptions
+	JuncOptions,
+	LogWriter
 }
 
 
@@ -82,8 +82,6 @@ class TestNetStation() satisfies Station
 	variable Average? response = null;
 	variable Average? responseServer = null;
 	variable Meter? messages = null;
-	
-	variable JuncTrack? track = null;
 	
 	
 	Integer socketsLimit = 50;
@@ -155,25 +153,28 @@ class TestNetStation() satisfies Station
 		responseServer = junc.monitor.average( serverRate );
 		messages = junc.monitor.meter( messageRate );
 		
-		value connectionTrack = junc.newTrack();
-		this.track = junc.newTrack();
-		return track.registerService<Byte[], Byte[], NetAddress>( address ).onComplete (
-			(JuncService<Byte[], Byte[]> service) {
-				service.onConnected( serviceConnected );
-				Timer t = connectionTrack.createTimer( PeriodicTimeRow( 200, socketsLimit ) );
-				t.onData (
-					( TimeEvent event ) {
-						for ( i in 0:10 ) {
-							connectionTrack.connect<Byte[], Byte[], NetAddress>( address ).onComplete (
-								connection,
-								(Throwable err)=> print( "error during connection ``err``" )
-							);
-						}
-					}
+		return junc.createTrack().compose (
+			( JuncTrack connectionTrack ) {
+				return track.registerService<Byte[], Byte[], NetAddress>( address ).onComplete (
+					(JuncService<Byte[], Byte[]> service) {
+						service.onConnected( serviceConnected );
+						Timer t = connectionTrack.createTimer( PeriodicTimeRow( 200, socketsLimit ) );
+						t.onData (
+							( TimeEvent event ) {
+								for ( i in 0:10 ) {
+									connectionTrack.connect<Byte[], Byte[], NetAddress>( address ).onComplete (
+										connection,
+										(Throwable err)=> print( "error during connection ``err``" )
+									);
+								}
+							}
+						);
+						t.start();
+					},
+					(Throwable err) => print( "cann't register net service due to ``err``" )
 				);
-				t.start();
 			},
-			(Throwable err) => print( "cann't register net service due to ``err``" )
+			track.context
 		);
 	}
 	

@@ -1,6 +1,7 @@
 import herd.junc.api {
-	Context,
-	JuncService
+	JuncService,
+	JuncTrack,
+	Message
 }
 import java.nio.channels {
 
@@ -204,18 +205,25 @@ class NetServer (
 	}
 	
 	"Adds service to the server. To be called from owner track"
-	shared JuncService<Byte[], Byte[]> addService (
-		"context service to work on" Context context
+	shared Message<JuncService<Byte[], Byte[]>, Null> addService (
+		"context service to work on" JuncTrack track
 	) {
-		value ev = owner.junc.messanger<NetSocket>( context );
+		value ev = owner.junc.messanger<NetSocket>( track.context );
 		NetService service = NetService (
-			address, context, ev[0], ev[1], socketsNum, connectionRate, metric, defaultBufferSize
+			address, track.context, ev[0], ev[1], socketsNum, connectionRate, metric, defaultBufferSize
 		);
-		service.next = first;
-		if ( exists f = first ) { f.previous = service; }
-		first = service;
-		service.slot.onClose( () => owner.context.executeWithArgument( removeService, service ) );
-		return service;
+		return track.createMessage<JuncService<Byte[], Byte[]>, Null> (
+			service,
+			(Message<Null, JuncService<Byte[], Byte[]>> msg) {
+				service.next = first;
+				if ( exists f = first ) { f.previous = service; }
+				first = service;
+				service.slot.onClose( () => owner.context.executeWithArgument( removeService, service ) );
+			},
+			(Throwable err) {
+				service.close();
+			}
+		);
 	}
 	
 }

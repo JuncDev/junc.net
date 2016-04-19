@@ -8,7 +8,9 @@ import herd.junc.api {
 	Workshop,
 	Connector,
 	Resolver,
-	JuncSocket
+	JuncSocket,
+	Message,
+	JuncTrack
 }
 import ceylon.collection {
 
@@ -25,7 +27,8 @@ import herd.junc.net.data {
 by( "Lis" )
 class ServerManager (
 	shared actual Junc junc,
-	shared actual Context context,
+	JuncTrack track,
+	Context clientGroupContext,
 	Integer defaultTimeOut,
 	Integer defaultBufferSize,
 	Integer defaultTimeIdle
@@ -37,11 +40,13 @@ class ServerManager (
 	assert ( defaultBufferSize > 0 );
 	
 	
+	shared actual Context context => track.context;
+	
 	HashMap<NetAddress, NetServer> servers = HashMap<NetAddress, NetServer>();
 	
 	"Client sockets - works on another track."
 	ClientSocketGroup clients = ClientSocketGroup (
-		junc.newTrack().context,
+		clientGroupContext,
 		ClientSocketFactory( emptySocketMetric, defaultBufferSize )
 	);
 	
@@ -49,18 +54,18 @@ class ServerManager (
 	ConnectionFinisher finisher = ConnectionFinisher( context, junc, defaultTimeOut, clients );
 	
 	"Creates new service."
-	JuncService<Byte[], Byte[]> doCreateService( NetAddress address, Context context ) {
+	Message<JuncService<Byte[], Byte[]>, Null> doCreateService( NetAddress address, JuncTrack track ) {
 		// exclude service name from actual address - since unused
 		if ( servers.empty && finisher.empty ) { this.context.execute( socketing ); }
 		if ( exists server = servers.get( address ) ) {
 			// server already exists - add new service to
-			return server.addService( context );
+			return server.addService( track );
 		}
 		else {
 			// create new server and attach service to
 			NetServer server = NetServer( address, this, junc.monitor, defaultBufferSize );
 			servers.put( server.address, server );
-			return server.addService( context );
+			return server.addService( track );
 		}
 	}
 
@@ -72,7 +77,6 @@ class ServerManager (
 		finisher.finishConnection();
 		if ( !servers.empty || !finisher.empty ) { context.execute( socketing ); }
 	}
-
 	
 	shared actual Promise<JuncSocket<FromService, ToService>> connect<FromService, ToService> (
 		NetAddress address, Context clientContext
@@ -88,21 +92,23 @@ class ServerManager (
 		}
 	}
 	
-	shared actual Promise<JuncService<FromService, ToService>> provideService<FromService, ToService> (
-		NetAddress address, Context serviceContext
+	shared actual Promise<Message<JuncService<Send, Receive>, Null>> provideService<Send, Receive> (
+		NetAddress address, JuncTrack serviceTrack
 	) {
 		try {
-			value def = serviceContext.newResolver<JuncService<FromService, ToService>>();
-			if ( is Resolver<JuncService<Byte[], Byte[]>> resolver = def ) {
-				resolver.resolve( doCreateService( address, serviceContext ) );
+			value def = serviceTrack.context.newResolver<Message<JuncService<Send, Receive>, Null>>();
+			if ( is Resolver<Message<JuncService<Byte[], Byte[]>, Null>> resolver = def ) {
+				resolver.resolve (
+					doCreateService( address, serviceTrack )
+				);
 				return def.promise;
 			}
 			else {
-				return serviceContext.rejectedPromise( InvalidServiceError() );
+				return serviceTrack.context.rejectedPromise( InvalidServiceError() );
 			}
 		}
 		catch ( Throwable err ) {
-			return serviceContext.rejectedPromise( err );
+			return serviceTrack.context.rejectedPromise( err );
 		}
 	}
 	

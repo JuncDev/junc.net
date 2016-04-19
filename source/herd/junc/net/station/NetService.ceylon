@@ -134,9 +134,8 @@ class NetService (
 	
 	shared actual Registration onClose( void close() ) => slot.onClose( close );
 	
-	shared actual Registration onConnected<Receive, Send>( void connected(JuncSocket<Receive, Send> socket) )
-			given Receive satisfies Byte[]
-			given Send satisfies Byte[] => slot.onData( connected );
+	shared actual Registration onConnected( void connected(JuncSocket<Byte[], Byte[]> socket) )
+			=> slot.onData( connected );
 	
 	shared actual Registration onError( void error(Throwable err) ) => slot.onError( error );
 	

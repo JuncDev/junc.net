@@ -29,13 +29,17 @@ shared class NetStation (
 {
 	
 	shared actual Promise<Object> start( JuncTrack track, Junc junc ) {
-		value manager = ServerManager( junc, track.context, defaultTimeOut, defaultBufferSize, defaultTimeIdle );
-		
-		return track.registerWorkshop( manager ).and<Object, Registration> (
-			track.registerConnector( manager ),
-			( Registration val, Registration otherVal ) {
-				return track.context.resolvedPromise( this );
-			}
+		return junc.createTrack().compose<Object> (
+			( JuncTrack clientTrack ) {
+				value manager = ServerManager (
+					junc, track, clientTrack.context, defaultTimeOut, defaultBufferSize, defaultTimeIdle
+				);
+				return track.registerWorkshop( manager ).and<Object, Registration> (
+					track.registerConnector( manager ),
+					( Registration val, Registration otherVal ) => track.context.resolvedPromise( this )
+				);
+			},
+			track.context			
 		);
 	}
 	

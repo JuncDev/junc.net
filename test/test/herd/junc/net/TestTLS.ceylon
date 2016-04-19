@@ -1,5 +1,4 @@
 import herd.junc.api.monitor {
-	LogWriter,
 	Priority
 }
 import herd.junc.net.station {
@@ -8,7 +7,8 @@ import herd.junc.net.station {
 import herd.junc.core {
 	startJuncCore,
 	JuncOptions,
-	Railway
+	Railway,
+	LogWriter
 }
 import herd.junc.net.data {
 	NetAddress,

@@ -3,13 +3,16 @@ import herd.junc.api.monitor {
 	AverageMetric,
 	monitored,
 	CounterMetric,
-	MeterMetric,
-	MetricWriter,
-	MetricSet
+	MeterMetric
 }
 import ceylon.collection {
 
 	ArrayList
+}
+import herd.junc.core {
+
+	MetricSet,
+	MetricWriter
 }
 
 

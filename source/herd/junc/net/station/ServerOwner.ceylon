@@ -10,12 +10,12 @@ see( `class NetServer` )
 by( "Lis" )
 interface ServerOwner
 {
-	"junc reference"
+	"Junc reference."
 	shared formal Junc junc;
 	
-	"context the owner works on"
+	"Context the owner works on."
 	shared formal Context context;
 
-	"remove server from the owner"
+	"Removes server from the owner."
 	shared formal void removeServer( NetServer server );
 }
